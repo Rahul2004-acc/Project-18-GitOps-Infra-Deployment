@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Setup Terraform
@@ -28,14 +28,18 @@ jobs:
         run: terraform fmt -check -recursive
 
       - name: Terraform Initialize
-        run: terraform init -backend=false
+        run: terraform init
 
       - name: Terraform Validate
         run: terraform validate
 
+      - name: Terraform Plan
+        run: terraform plan
+
   deploy:
     name: Deploy Infrastructure
     needs: validate
+
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     runs-on: ubuntu-latest
@@ -45,24 +49,17 @@ jobs:
 
     permissions:
       contents: read
-      id-token: write
 
     concurrency:
       group: production-terraform
       cancel-in-progress: false
 
     steps:
-      - name: Checkout repository
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
-          aws-region: ${{ vars.AWS_REGION }}
 
       - name: Terraform Initialize
         run: terraform init
@@ -72,3 +69,10 @@ jobs:
 
       - name: Terraform Apply
         run: terraform apply -auto-approve tfplan
+
+      - name: Upload Deployment Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitops-deployment-output
+          path: deployment-output.txt
+          if-no-files-found: error
